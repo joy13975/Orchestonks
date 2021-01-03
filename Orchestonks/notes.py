@@ -1,8 +1,7 @@
 import re
-import math
 
 A4 = 440
-C0 = A4*math.pow(2, -4.75)
+C0 = A4 * (2.0 ** -4.75)
 
 notes = 'CDEFGAB'
 scale = ['C', 'SC', 'D', 'SD', 'E', 'F', 'SF', 'G', 'SG', 'A', 'SA', 'B']
@@ -21,4 +20,4 @@ def note_to_freq(note):
     elif sharpflat is None:
         sharpflat = ''
     scale_index = scale.index(sharpflat + notes[note_index])
-    return C0*math.pow(2, octave + (scale_index / 12))
+    return C0 * (2.0 ** (octave + (scale_index / 12)))

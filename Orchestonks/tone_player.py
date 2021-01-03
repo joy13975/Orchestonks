@@ -69,6 +69,8 @@ class TonePlayer:
         return samples
 
     def play(self, freq, duration=-1, volume=0.5):
+        if isinstance(freq, str):
+            freq = note_to_freq(freq)
         tone = self.Tone(freq, volume, duration)
         tone_id = id(tone)
         self.tones[tone_id] = tone
