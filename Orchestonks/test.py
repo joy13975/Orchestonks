@@ -24,7 +24,7 @@ def main(file=''):
         max_pitch = max(abs(pitch))
         pitch_factor = 12 * 4  # 1 octaves = 12 notes
         
-        interval = 300
+        interval = 100
         max_vol = max(vol_vals)
         vol_cap = 1
         
