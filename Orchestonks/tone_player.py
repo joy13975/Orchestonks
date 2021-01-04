@@ -1,4 +1,5 @@
 from time import time, sleep
+import math
 
 import sounddevice as sd
 import numpy as np
@@ -14,6 +15,7 @@ class TonePlayer:
             self.start_time = -1
             self.duration = duration  # ms
             self.sample_included = False
+            self.dead = False
 
         def expired(self):
             if self.duration == -1 or self.start_time == -1:
@@ -22,7 +24,7 @@ class TonePlayer:
 
         def sample(self):
             self.sample_included = True
-            return self.freq, self.volume
+            return self.freq, self.volume, self.dead
 
     def __init__(self):
         self.chunk_size = 512
@@ -32,12 +34,13 @@ class TonePlayer:
         self.sample_i = 0
 
     def _sample_callback(self, out_data, frame_count, time_info, status):
-        keys = list(self.tones.keys())
-        for k in keys:
-            if self.tones[k].expired():
-                del self.tones[k]
+        self.tones = {k: v for k, v in self.tones.items() if not v.dead}
         end = self.sample_i + frame_count
-        out_data[:] = self._gen_samples(
+        for t in self.tones.values():
+            if t.expired():
+                t.dead = True
+                # Dead tones are included in the sample one last time, but attenuated
+        out_data[:] = self._mix_samples(
             self.sample_i, end).reshape(frame_count, 1)
         self.sample_i = end
         now = time()
@@ -55,15 +58,18 @@ class TonePlayer:
     def __exit__(self, exc_type, exc_value, traceback):
         self.stream.close()
 
-    def _gen_samples(self, i, j):
+    def _mix_samples(self, i, j):
         if self.tones:
-            freq, volume = zip(*(t.sample()
-                                 for t in self.tones.values()))
-            freq = np.asmatrix(freq)
-            volume = np.asmatrix(volume)
+            freq, volume, dead = [np.asmatrix(a) for a in
+                                  zip(*(t.sample()
+                                        for t in self.tones.values()))]
             sines = np.asmatrix(
                 np.sin((freq / self.fs).T * 2.0 * np.pi * np.arange(i, j)))
-            samples = (volume * sines).A1
+            fade = 1/(1+(np.exp(-(-np.arange(j-i) + np.pi/2))))
+            no_fade = np.ones(j-i)
+            fade_mat = np.asmatrix([no_fade, fade])
+            fade_mask = np.asmatrix(np.diag(np.ones(2)))[dead.astype(int).A1]
+            samples = (volume * (np.multiply(fade_mask*fade_mat, sines))).A1
         else:
             samples = np.array([0.0]*(j-i))
         return samples
